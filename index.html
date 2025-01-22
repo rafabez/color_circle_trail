@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.46/build/Tone.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        #canvas {
+            background-color: #111;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const particles = [];
+        let lastParticleCreationTime = 0;
+        const particleCreationInterval = 100;
+
+        class Particle {
+            constructor(x, y, playSound) {
+                this.x = x;
+                this.y = y;
+                this.radius = Math.random() * 20 + 10;
+                this.color = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+                this.speedX = Math.random() * 4 - 2;
+                this.speedY = Math.random() * 4 - 2;
+
+                if (playSound) {
+                    this.synth = new Tone.Synth({
+                        oscillator: {
+                            type: 'sine'
+                        },
+                        envelope: {
+                            attack: 0.01,
+                            decay: 0.1,
+                            sustain: 0,
+                            release: 0.1
+                        }
+                    }).toDestination();
+
+                    const frequency = 800 - (y / canvas.height) * 800;
+                    this.synth.triggerAttackRelease(frequency, '8n');
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.radius > 0.2) {
+                    this.radius -= 0.1;
+                }
+            }
+        }
+
+        function createParticles(x, y) {
+            const currentTime = Date.now();
+            if (currentTime - lastParticleCreationTime > particleCreationInterval) {
+                for (let i = 0; i < 20; i++) {
+                    const playSound = i % 20 === 0; 
+                    particles.push(new Particle(x, y, playSound));
+                }
+                lastParticleCreationTime = currentTime;
+            }
+        }
+
+        function resetAudioContext() {
+            Tone.dispose();
+            Tone.context = new Tone.Context();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((particle, index) => {
+                particle.draw();
+                particle.update();
+                if (particle.radius <= 0.2) {
+                    particles.splice(index, 1);
+                }
+            });
+            if (particles.length === 0) {
+                resetAudioContext();
+            }
+        }
+
+        canvas.addEventListener('mousemove', (event) => {
+            createParticles(event.x, event.y);
+        });
+
+        canvas.addEventListener('touchmove', (event) => {
+            const touch = event.touches[0];
+            createParticles(touch.clientX, touch.clientY);
+        });
+
+        canvas.addEventListener('dblclick', () => {
+            window.location.reload();
+        });
+
+        animate();
+    </script>
+</body>
+</html>
